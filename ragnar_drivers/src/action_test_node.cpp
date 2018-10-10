@@ -23,7 +23,7 @@ static trajectory_msgs::JointTrajectory makeCircleTrajectory()
   {
     pose[0] = r * std::cos(i * M_PI / 180.0);
     pose[1] = r * std::sin(i * M_PI / 180.0);
-    pose[2] = -0.35;
+    pose[2] = -0.4;
     pose[3] = 0.0;
 
     JointTrajectoryPoint pt;

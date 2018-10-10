@@ -1,12 +1,29 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h> // for publishing robot current position
+#include <geometry_msgs/Pose.h>
 #include <trajectory_msgs/JointTrajectory.h>
+#include "ragnar_kinematics/ragnar_kinematics.h"
+#include "ragnar_kinematics/ragnar_kinematic_defs.h"
 
 #include "ragnar_simulator/ragnar_simulator.h"
 
+
+bool extractJoints(const sensor_msgs::JointState& msg, double* actuators) 
+{
+  
+  // Otherwise copy values, and continue on
+  for (int i = 0; i < 4; i++)
+  {
+    actuators[i] = msg.position[i];
+  }
+
+  return true;
+}
+
 void publishCurrentState(const ros::TimerEvent& timer,
                          ros::Publisher& pub,
-                         ragnar_simulator::RagnarSimulator& sim)
+                         ragnar_simulator::RagnarSimulator& sim,
+                         ros::Publisher& mobile_pub)
 {
   sensor_msgs::JointState joint_state;
   joint_state.header.frame_id = "world";
@@ -21,7 +38,36 @@ void publishCurrentState(const ros::TimerEvent& timer,
     joint_state.position[i] *= -1.0;
 
   pub.publish(joint_state);
+  double pose[4];
+  double actuators[4];
+
+  if (!extractJoints(joint_state, actuators))
+  {
+    //  JointState did not contain all of the robot joint names
+    return;
+  }
+  // using joint states, calculate forward kinematics of ragnar
+  if (!ragnar_kinematics::forward_kinematics(actuators, pose))
+  {
+    ROS_WARN("Could not calculate FK for given pose");
+    return;
+  }
+
+  geometry_msgs::Pose mobile_pose;
+  mobile_pose.position.x = pose[0];
+  mobile_pose.position.y = pose[1];
+  mobile_pose.position.z = pose[2];
+  char str[100];
+  sprintf(str,"Position: X%f Y%f Z%f", pose[0], pose[1], pose[2]);
+  ROS_INFO(str);
+
+  mobile_pub.publish(mobile_pose);
+ 
+  
+
 }
+
+
 
 void setCurrentTrajectory(const trajectory_msgs::JointTrajectoryConstPtr& traj,
                           ragnar_simulator::RagnarSimulator& sim)
@@ -64,6 +110,7 @@ int main(int argc, char** argv)
 
   // create pub/subscribers and wire them up
   ros::Publisher current_state_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
+  ros::Publisher mobile_base_pub = nh.advertise<geometry_msgs::Pose>("mobile_platform", 1);
   ros::Subscriber command_state_sub = 
       nh.subscribe<trajectory_msgs::JointTrajectory>("joint_path_command", 
                                                      1, 
@@ -74,7 +121,8 @@ int main(int argc, char** argv)
       nh.createTimer(ros::Duration(1.0/publish_rate), boost::bind(publishCurrentState,
                                                      _1,
                                                      boost::ref(current_state_pub),
-                                                     boost::ref(sim)));
+                                                     boost::ref(sim),
+                                                     boost::ref(mobile_base_pub)));
 
   ROS_INFO("Simulator service spinning");
   ros::spin();

@@ -28,7 +28,7 @@ static trajectory_msgs::JointTrajectory makeCircleTrajectory()
   {
     pose[0] = r * std::cos(i * M_PI / 180.0);
     pose[1] = r * std::sin(i * M_PI / 180.0);
-    pose[2] = -0.35;
+    pose[2] = -0.4;
     pose[3] = 0.0;
 
     JointTrajectoryPoint pt;
@@ -190,7 +190,10 @@ TrajPointVec singlePoint(const RagnarPose& pose, double dt)
   RagnarPoint joints;
   if (!ragnar_kinematics::inverse_kinematics(pose.pose, joints.joints))
   {
-    throw std::runtime_error("Couldn't plan to point");
+    char buffer [50];
+    int n;
+    n=sprintf (buffer, "Couldn't plan to point %f %f %f", pose.pose[0],pose.pose[1],pose.pose[2]);
+    throw std::runtime_error(buffer);
   }
 
   TrajPointVec v;
@@ -211,11 +214,11 @@ static trajectory_msgs::JointTrajectory makePickPlaceTrajectory()
   const double WAIT_PERIOD = 0.5;
 
   // Home position
-  RagnarPose home_pt (0.0, 0.0, -0.2);
+  RagnarPose home_pt (0.0, 0.0, -0.4);
   TrajPointVec vec = singlePoint(home_pt, 5.0);
 
   // Pick spot 1
-  RagnarPose pick1 (0.15, -0.3, -0.25);
+  RagnarPose pick1 (0.15, -0.3, -0.3);
   vec = append(vec, toTrajPoints(linearMove(home_pt, pick1, 0.01), LINEAR_MOVE_TIME));
 
   // Down

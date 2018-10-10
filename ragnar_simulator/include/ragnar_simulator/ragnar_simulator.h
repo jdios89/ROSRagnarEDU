@@ -5,6 +5,7 @@
 #include <string>
 
 #include <trajectory_msgs/JointTrajectory.h>
+#include <geometry_msgs/Pose.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
 #include <ros/node_handle.h>
 #include <actionlib/server/action_server.h>

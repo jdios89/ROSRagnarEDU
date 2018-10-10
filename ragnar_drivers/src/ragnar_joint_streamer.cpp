@@ -21,7 +21,7 @@ const static double RAGNAR_DEFAULT_VELOCITY = 100.0 * 60.0; // 100 mm/s
 // and be considered finished with its goal. It's large, but it seems
 // the FK differs a bit between platforms.
 const static double JOINT_TOL_EPS = 0.05;
-
+const static double TEST_VARIABLE = 0.0; 
 // helper function
 static JointTrajPtMessage create_message(int seq,
                                          const std::vector<double>& joint_pos,

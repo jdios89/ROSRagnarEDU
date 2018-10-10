@@ -39,10 +39,10 @@
 #define RAGNAR_JOINT4_PRIMARY_ARM  0.300      // param 19
 
 // l2 : secondary_arm
-#define RAGNAR_JOINT1_SECONDARY_ARM  0.550     // param 20
-#define RAGNAR_JOINT2_SECONDARY_ARM  0.550     // param 21
-#define RAGNAR_JOINT3_SECONDARY_ARM  0.550     // param 22
-#define RAGNAR_JOINT4_SECONDARY_ARM  0.550     // param 23
+#define RAGNAR_JOINT1_SECONDARY_ARM  0.60     // param 20
+#define RAGNAR_JOINT2_SECONDARY_ARM  0.60     // param 21
+#define RAGNAR_JOINT3_SECONDARY_ARM  0.60     // param 22
+#define RAGNAR_JOINT4_SECONDARY_ARM  0.60     // param 23
 
 // c : bridged
 #define RAGNAR_JOINT1_BRIDGED_DISTANCE  0.100  // param 24
