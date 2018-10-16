@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h> // for publishing robot current position
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include "ragnar_kinematics/ragnar_kinematics.h"
 #include "ragnar_kinematics/ragnar_kinematic_defs.h"
@@ -53,10 +54,11 @@ void publishCurrentState(const ros::TimerEvent& timer,
     return;
   }
 
-  geometry_msgs::Pose mobile_pose;
-  mobile_pose.position.x = pose[0];
-  mobile_pose.position.y = pose[1];
-  mobile_pose.position.z = pose[2];
+  geometry_msgs::PoseStamped mobile_pose;
+  
+  mobile_pose.pose.position.x = pose[0];
+  mobile_pose.pose.position.y = pose[1];
+  mobile_pose.pose.position.z = pose[2];
   char str[100];
   sprintf(str,"Position: X%f Y%f Z%f", pose[0], pose[1], pose[2]);
   ROS_INFO(str);
@@ -78,8 +80,11 @@ void setCurrentTrajectory(const trajectory_msgs::JointTrajectoryConstPtr& traj,
 
 int main(int argc, char** argv)
 {
-  const static double default_position[] = {-0.07979196, 0.07044869, 
-                                            -0.07044869, 0.07979196};
+  //const static double default_position[] = {-0.07979196, 0.07044869, 
+  //                                          -0.07044869, 0.07979196};
+  const static double default_position[] = {-0.018251, 0.005695774, 
+                                            -0.005695774, 0.0182518};
+
 
   ros::init(argc, argv, "ragnar_simulator_node");
   ros::NodeHandle nh;
@@ -110,7 +115,7 @@ int main(int argc, char** argv)
 
   // create pub/subscribers and wire them up
   ros::Publisher current_state_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
-  ros::Publisher mobile_base_pub = nh.advertise<geometry_msgs::Pose>("mobile_platform", 1);
+  ros::Publisher mobile_base_pub = nh.advertise<geometry_msgs::PoseStamped>("mobile_platform", 1);
   ros::Subscriber command_state_sub = 
       nh.subscribe<trajectory_msgs::JointTrajectory>("joint_path_command", 
                                                      1, 
