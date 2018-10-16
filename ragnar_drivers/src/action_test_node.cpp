@@ -38,7 +38,10 @@ static trajectory_msgs::JointTrajectory makeCircleTrajectory()
       total_t += dt;
       traj.points.push_back(pt);
     }
+    traj.points.size();
+
   }
+  ROS_INFO("Getting size %i", traj.points.size());
   return traj;
 }
 

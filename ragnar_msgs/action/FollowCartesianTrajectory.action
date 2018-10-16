@@ -1,7 +1,7 @@
 # The joint trajectory to follow
 # trajectory_msgs/JointTrajectory trajectory
 
-geometry_msgs/PoseArray trajectory
+ragnar_msgs/CartesianTrajectory trajectory
 
 # Tolerances for the trajectory.  If the measured joint values fall
 # outside the tolerances the trajectory goal is aborted.  Any
@@ -26,7 +26,7 @@ geometry_msgs/PoseArray trajectory
 # time" + goal_time_tolerance, the goal aborts with error_code set to
 # GOAL_TOLERANCE_VIOLATED
 
-control_msgs/JointTolerance[] goal_tolerance
+# control_msgs/JointTolerance[] goal_tolerance
 
 duration goal_time_tolerance
 
@@ -53,6 +53,6 @@ string error_string
 Header header
 string[] joint_names
 #trajectory_msgs/JointTrajectoryPoint desired
-trajectory_msgs/JointTrajectoryPoint actual
-geometry_msgs/Pose mobile_pose
+ragnar_msgs/CartesianTrajectoryPoint actual
+
 #trajectory_msgs/JointTrajectoryPoint error

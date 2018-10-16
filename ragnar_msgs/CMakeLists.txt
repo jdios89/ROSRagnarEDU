@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ragnar_actionserver)
+project(ragnar_msgs)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -8,15 +8,8 @@ project(ragnar_actionserver)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  ragnar_kinematics
-  ragnar_msgs
-  control_msgs
-  sensor_msgs
   geometry_msgs
-  roscpp
-  rospy
-  std_msgs
-  trajectory_msgs
+  message_generation
   actionlib_msgs
   actionlib
 )
@@ -55,11 +48,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+   FILES
+   CartesianTrajectory.msg
+   CartesianTrajectoryPoint.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -69,20 +62,17 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate actions in the 'action' folder
-add_action_files(
-  DIRECTORY action
-  FILES FollowCartesianTrajectory.action
-)
+ add_action_files(
+   FILES
+   FollowCartesianTrajectory.action
+#   Action2.action
+ )
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
-  control_msgs
   geometry_msgs
-  std_msgs
-  trajectory_msgs
-  actionlib_msgs
-  ragnar_msgs
+  actionlib_msgs   
 )
 
 ################################################
@@ -115,10 +105,9 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-
-INCLUDE_DIRS include
-#  LIBRARIES ragnar_actionserver
-CATKIN_DEPENDS control_msgs geometry_msgs roscpp rospy std_msgs trajectory_msgs actionlib_msgs ragnar_kinematics ragnar_msgs
+#  INCLUDE_DIRS include
+#  LIBRARIES ragnar_msgs
+  CATKIN_DEPENDS geometry_msgs message_runtime actionlib_msgs
 #  DEPENDS system_lib
 )
 
@@ -128,7 +117,6 @@ CATKIN_DEPENDS control_msgs geometry_msgs roscpp rospy std_msgs trajectory_msgs 
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include)
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
@@ -136,7 +124,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/ragnar_actionserver.cpp
+#   src/${PROJECT_NAME}/ragnar_msgs.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -147,8 +135,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-## add_executable(${PROJECT_NAME}_node src/ragnar_actionserver_node.cpp
-##                                     src/ragnar_actionserver.cpp)
+# add_executable(${PROJECT_NAME}_node src/ragnar_msgs_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -161,9 +148,9 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-##target_link_libraries(${PROJECT_NAME}_node
-##  ${catkin_LIBRARIES}
-##)
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -205,7 +192,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_ragnar_actionserver.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_ragnar_msgs.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
