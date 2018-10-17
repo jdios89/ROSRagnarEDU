@@ -10,72 +10,43 @@
 
 
 bool extractJoints(const sensor_msgs::JointState& msg, double* actuators) 
-{
-  
+{  
   // Otherwise copy values, and continue on
   for (int i = 0; i < 4; i++)
   {
     actuators[i] = msg.position[i];
   }
-
   return true;
 }
 
-void publishCurrentState(const ros::TimerEvent& timer,
+void publishCurrentCommand(const ros::TimerEvent& timer,
                          ros::Publisher& pub,
-                         ragnar_simulator::RagnarSimulator& sim,
+                         ragnar_action::RagnarAction& action_ragnar,
                          ros::Publisher& mobile_pub)
 {
-  sensor_msgs::JointState joint_state;
-  joint_state.header.frame_id = "world";
-  joint_state.header.stamp = ros::Time::now();
-  joint_state.name = sim.getJointNames();
-  // compute current position
-  sim.computeTrajectoryPosition(timer.current_real, joint_state.position);
-  sim.pollAction();
-
-  std::reverse(joint_state.position.begin(), joint_state.position.end());
-  for (unsigned i = 0; i < joint_state.position.size(); ++i)
-    joint_state.position[i] *= -1.0;
-
-  pub.publish(joint_state);
-  double pose[4];
-  double actuators[4];
-
-  if (!extractJoints(joint_state, actuators))
-  {
-    //  JointState did not contain all of the robot joint names
-    return;
-  }
-  // using joint states, calculate forward kinematics of ragnar
-  if (!ragnar_kinematics::forward_kinematics(actuators, pose))
-  {
-    ROS_WARN("Could not calculate FK for given pose");
-    return;
-  }
-
-  geometry_msgs::PoseStamped mobile_pose;
-  
-  mobile_pose.pose.position.x = pose[0];
-  mobile_pose.pose.position.y = pose[1];
-  mobile_pose.pose.position.z = pose[2];
+  action_ragnar.sendFeedback(); 
+  std::vector<double> mobile_command;
+  action_ragnar.computeTrajectoryPosition(timer.current_real, mobile_command);
+  geometry_msgs::Pose posecommand; 
+  posecommand.position.x = mobile_command[0];
+  posecommand.position.y = mobile_command[1];
+  posecommand.position.z = mobile_command[2]; 
+  // This will see if the action is success or failure 
+  action_ragnar.pollAction();
+  action_ragnar.sendFeedback();
   char str[100];
-  sprintf(str,"Position: X%f Y%f Z%f", pose[0], pose[1], pose[2]);
-  ROS_INFO(str);
-
-  mobile_pub.publish(mobile_pose);
- 
-  
-
+  sprintf(str,"Position: X%f Y%f Z%f", mobile_command[0], mobile_command[1], mobile_command[2]);
+  //ROS_INFO(str);
+  pub.publish(posecommand);
+  //mobile_pub.publish(mobile_pose);
 }
 
 
-
-void setCurrentTrajectory(const trajectory_msgs::JointTrajectoryConstPtr& traj,
-                          ragnar_simulator::RagnarSimulator& sim)
+void updatPose(const geometry_msgs::PoseStamped::ConstPtr& pose,
+                          ragnar_action::RagnarAction& action_ragnar)
 {
-  ROS_INFO("Setting new trajectory");
-  sim.setTrajectory(*traj);
+  ROS_INFO("updating pose");
+  action_ragnar.updatePose(*pose);
 }
 
 int main(int argc, char** argv)
@@ -86,7 +57,7 @@ int main(int argc, char** argv)
                                             -0.005695774, 0.0182518};
 
 
-  ros::init(argc, argv, "ragnar_simulator_node");
+  ros::init(argc, argv, "ragnar_action_node");
   ros::NodeHandle nh;
   ros::NodeHandle pnh ("~");
 
@@ -111,25 +82,25 @@ int main(int argc, char** argv)
   pnh.param<double>("rate", publish_rate, 30.0);
   
   // instantiate simulation
-  ragnar_simulator::RagnarSimulator sim (seed_position, joint_names, nh);
+  ragnar_action::RagnarAction action_ragnar (seed_position, joint_names, nh);
 
   // create pub/subscribers and wire them up
-  ros::Publisher current_state_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
+  ros::Publisher current_command_pub = nh.advertise<geometry_msgs::Pose>("mobile_platform_command", 1);
   ros::Publisher mobile_base_pub = nh.advertise<geometry_msgs::PoseStamped>("mobile_platform", 1);
-  ros::Subscriber command_state_sub = 
-      nh.subscribe<trajectory_msgs::JointTrajectory>("joint_path_command", 
+  ros::Subscriber pose_state_sub = 
+      nh.subscribe<geometry_msgs::PoseStamped>("ragnar_pose", 
                                                      1, 
-                                                     boost::bind(setCurrentTrajectory, 
+                                                     boost::bind(updatPose, 
                                                                  _1, 
-                                                                 boost::ref(sim)));
+                                                                 boost::ref(action_ragnar)));
   ros::Timer state_publish_timer =
-      nh.createTimer(ros::Duration(1.0/publish_rate), boost::bind(publishCurrentState,
+      nh.createTimer(ros::Duration(1.0/publish_rate), boost::bind(publishCurrentCommand,
                                                      _1,
-                                                     boost::ref(current_state_pub),
-                                                     boost::ref(sim),
+                                                     boost::ref(current_command_pub),
+                                                     boost::ref(action_ragnar),
                                                      boost::ref(mobile_base_pub)));
 
-  ROS_INFO("Simulator service spinning");
+  ROS_INFO("Ragnar Action service spinning");
   ros::spin();
   return 0;
 }

@@ -5,6 +5,7 @@
 #include "ragnar_kinematics/ragnar_kinematic_defs.h"
 
 
+
 ragnar_action::RagnarAction::RagnarAction(const std::vector<double>& seed_pose, 
                                                    const std::vector<std::string>& joint_names,
                                                    ros::NodeHandle& nh)
@@ -25,6 +26,17 @@ ragnar_action::RagnarAction::RagnarAction(const std::vector<double>& seed_pose,
     ROS_WARN("Could not calculate FK for given pose");
     return;
   }
+  _geopose.position.x = _pose[0];
+  _geopose.position.y = _pose[1];
+  _geopose.position.z = _pose[2];
+  char str[100];
+  traj_start_position_cartesian_.assign(_pose, _pose + 3);
+  //sprintf(str,"Position: X%f Y%f Z%f", traj_start_position_cartesian_[0], traj_start_position_cartesian_[1], traj_start_position_cartesian_[2]);
+  //ROS_INFO(str);
+  action_feedback_.joint_names.push_back("joint_1");
+  action_feedback_.joint_names.push_back("joint_2");
+  action_feedback_.joint_names.push_back("joint_3");
+  action_feedback_.joint_names.push_back("joint_4");
   action_server_.start();
 }
 
@@ -37,11 +49,26 @@ bool ragnar_action::RagnarAction::setTrajectory(const ragnar_msgs::CartesianTraj
   computeTrajectoryPosition(now, position);
 
   // Rollover to the new trajectory
-  traj_start_position_ = position;
+  traj_start_position_cartesian_ = position;
   traj_ = new_trajectory;
   traj_start_time_ = now;
 
   return true;
+}
+bool ragnar_action::RagnarAction::updatePose(const geometry_msgs::PoseStamped& pose)
+{
+  _geopose = pose.pose; 
+  return true;
+}
+void ragnar_action::RagnarAction::sendFeedback()
+{
+  if (has_active_goal_) {
+    ragnar_msgs::CartesianTrajectoryPoint actual_; 
+    actual_.pose = _geopose; 
+    action_feedback_.actual = actual_; 
+    //action_server_.publishFeedback(active_goal_.getGoalStatus(), action_feedback_);
+  }
+  return; 
 }
 
 static double linearInterpolate(double start, double stop, double ratio)
@@ -54,22 +81,39 @@ static double linearInterpolate(double start, double stop, double ratio)
 bool ragnar_action::RagnarAction::computeTrajectoryPosition(const ros::Time& tm, 
                                                                   std::vector<double>& output) const
 {
+  // create auxiliary variables 
+  geometry_msgs::Pose trPose; 
+  double trpose[3]; 
+  char str[100];
+  // sprintf(str,"time %d, start time %d", tm, traj_start_time_);
+  //ROS_INFO(str);
   // Check to see if time is in past of traj
   if (tm < traj_start_time_ || traj_.points.empty())
-  {
-    output = traj_start_position_;
+  { 
+    //ROS_INFO("in past of trajectory");  
+    output = traj_start_position_cartesian_;
     return true;
   }
   // check to see if time is past end of traj
   else if (tm > traj_start_time_ + traj_.points.back().time_from_start)
   {
-    output = traj_.points.back().positions;
+    //ROS_INFO("in past end of trajectory");  
+    
+    // extract the pose to a double vector 
+    trPose = traj_.points.back().pose;
+    trpose[0] = trPose.position.x;
+    trpose[1] = trPose.position.y;
+    trpose[2] = trPose.position.z;
+    output.assign(trpose, trpose + 3);
     return true;
   }
   
   // Otherwise the traj must be within the trajectory
   ros::Duration dt = tm - traj_start_time_;
-
+  //sprintf(str,"dt %d", dt);
+  
+  //ROS_INFO(str);  
+    
   size_t idx = 0;
   for (size_t i = 0; i < traj_.points.size(); ++i)
   {
@@ -81,32 +125,37 @@ bool ragnar_action::RagnarAction::computeTrajectoryPosition(const ros::Time& tm,
   }
 
   // Grab the two points and interpolate
-  const trajectory_msgs::JointTrajectoryPoint& end_pt = traj_.points[idx];
+  const ragnar_msgs::CartesianTrajectoryPoint& end_pt = traj_.points[idx];
 
   // output container
   std::vector<double> point;
-  point.reserve(traj_start_position_.size());
+  point.reserve(traj_start_position_cartesian_.size());
 
   if (idx == 0)
   {
     // interpolate from start position
     double ratio = dt.toSec() / end_pt.time_from_start.toSec();
 
-    for (int i = 0; i < 4; ++i)
-    {
-      point.push_back(linearInterpolate(traj_start_position_[i], end_pt.positions[i], ratio));
-    }
+    //for (int i = 0; i < 3; ++i)
+    //{
+    point.push_back(linearInterpolate(traj_start_position_cartesian_[0], end_pt.pose.position.x, ratio));
+    point.push_back(linearInterpolate(traj_start_position_cartesian_[1], end_pt.pose.position.y, ratio));
+    point.push_back(linearInterpolate(traj_start_position_cartesian_[2], end_pt.pose.position.z, ratio));
+    //}
   }
   else
   {
-    const trajectory_msgs::JointTrajectoryPoint& start_pt = traj_.points[idx-1];
+    const ragnar_msgs::CartesianTrajectoryPoint& start_pt = traj_.points[idx-1];
     // interpolate between two points
     double ratio = (dt - start_pt.time_from_start).toSec() / (end_pt.time_from_start - start_pt.time_from_start).toSec();   
 
-    for (int i = 0; i < 4; ++i)
-    {
-      point.push_back(linearInterpolate(start_pt.positions[i], end_pt.positions[i], ratio));
-    }
+    //for (int i = 0; i < 3; ++i)
+    //{
+    //  point.push_back(linearInterpolate(start_pt.positions[i], end_pt.positions[i], ratio));
+    point.push_back(linearInterpolate(start_pt.pose.position.x, end_pt.pose.position.x, ratio));
+    point.push_back(linearInterpolate(start_pt.pose.position.y, end_pt.pose.position.y, ratio));
+    point.push_back(linearInterpolate(start_pt.pose.position.z, end_pt.pose.position.z, ratio));
+    //}
   }
 
   output = point;
@@ -114,12 +163,31 @@ bool ragnar_action::RagnarAction::computeTrajectoryPosition(const ros::Time& tm,
 }
 
 void ragnar_action::RagnarAction::pollAction()
-{ // This function is if it has goal 
+{  
   if (has_active_goal_ && ros::Time::now() > (traj_start_time_ + traj_.points.back().time_from_start))
   {
     active_goal_.setSucceeded();
     has_active_goal_ = false;
   }
+}
+
+void ragnar_action::RagnarAction::poseStateCB() //const geometry_msgs::Pose::ConstPtr& pose)
+{
+  if(has_active_goal_)
+  {
+    if(ros::Time::now() - traj_start_time_ > target_pt_.time_from_start)
+    {
+      // evaluate action 
+      has_active_goal_ = false; 
+    }
+
+  }
+}
+
+void stopTrajectory()
+{
+  float f = 2;
+  return;
 }
 
 void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHandle& gh)
@@ -130,11 +198,13 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
   {
     ROS_WARN("Received new goal, canceling current one");
     // stop the robot before abort 
+    stopTrajectory();
     active_goal_.setAborted();
     has_active_goal_ = false;
   }
   // check for valid trajectory
-  const ragnar_msgs::CartesianTrajectory& traj = gh.getGoal()->trajectory;   
+  const ragnar_msgs::CartesianTrajectory& traj = gh.getGoal()->trajectory;
+  goal_status_ = gh.getGoalStatus();
 
   int traj_size = traj.points.size();
   for (int i=0; i<traj_size; i++) {
@@ -144,9 +214,9 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
     tpose[0] = point.pose.position.x;
     tpose[1] = point.pose.position.y;
     tpose[2] = point.pose.position.z;
-    if (!ragnar_kinematics::inverse_kinematics(pose, joints))
+    if (!ragnar_kinematics::inverse_kinematics(tpose, joints))
     {
-      ROS_WARN_STREAM("Could not solve for: " << pose[0] << " " << pose[1] << " " << pose[2] << " " << pose[3]);
+      ROS_WARN_STREAM("Could not solve for: " << tpose[0] << " " << tpose[1] << " " << tpose[2] << " " << tpose[3]);
       ROS_INFO("Cancelling goal");
       active_goal_.setAborted();
       acceptance = false; 
@@ -165,15 +235,50 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
   }
 }
 
+static bool pose_in_range(const double(&vec)[4])
+{
+  const static double MIN_X = -0.4;
+  const static double MAX_X = 0.4;
+  const static double MIN_Y = -0.4;
+  const static double MAX_Y = 0.4;
+  const static double MIN_Z = -0.55;
+  const static double MAX_Z = 0.0;
+
+  if (vec[0] > MAX_X || vec[0] < MIN_X)
+    return false;
+  if (vec[1] > MAX_Y || vec[1] < MIN_Y)
+    return false;
+  if (vec[2] > MAX_Z || vec[2] < MIN_Z)
+    return false;
+  return true;
+}
+
 void ragnar_action::RagnarAction::cancelCB(CartesianTractoryActionServer::GoalHandle &gh)
 {
   ROS_INFO("Cancelling goal");
   if (active_goal_ == gh)
   {
     // stop the controller
+    stopTrajectory();
     traj_start_time_ = ros::Time(0);
     // mark the goal as canceled
     active_goal_.setCanceled();
     has_active_goal_ = false;
   }
 }
+
+
+// void ragnar_action::RagnarAction::jointStateCB(const sensor_msgs::JointStateConstPtr &msg)
+// {
+//   this->cur_joint_pos_ = *msg;
+//   if (has_active_goal_)
+//   {
+//    if (state_ == TransferStates::IDLE && inRange(cur_joint_pos_.position, target_pt_.positions, JOINT_TOL_EPS))
+//    {
+//      ROS_INFO("Action succeeded");
+//      active_goal_.setSucceeded();
+//      has_active_goal_ = false;
+//    }
+//  }
+// }
+
