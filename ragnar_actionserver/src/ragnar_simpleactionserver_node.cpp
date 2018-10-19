@@ -6,7 +6,7 @@
 #include "ragnar_kinematics/ragnar_kinematics.h"
 #include "ragnar_kinematics/ragnar_kinematic_defs.h"
 
-#include "ragnar_actionserver/ragnar_actionserver.h"
+#include "ragnar_actionserver/ragnar_simpleactionserver.h"
 
 
 bool extractJoints(const sensor_msgs::JointState& msg, double* actuators) 
@@ -28,6 +28,7 @@ void publishCurrentCommand(const ros::TimerEvent& timer,
   action_ragnar.sendFeedback(); 
   std::vector<double> mobile_command;
   action_ragnar.computeTrajectoryPosition(timer.current_real, mobile_command);
+  mobile_command = action_ragnar.mob_command; // this is computed inside the action now 
   ragnar_msgs::CartesianTrajectoryPoint trajectorypoint; 
 
   geometry_msgs::Pose posecommand; 
@@ -45,14 +46,14 @@ void publishCurrentCommand(const ros::TimerEvent& timer,
   trajectorypoint.accel.linear.y = mobile_command[7];
   trajectorypoint.accel.linear.z = mobile_command[8];
   // This will see if the action is success or failure 
-  action_ragnar.pollAction();
-  action_ragnar.sendFeedback();
+  //action_ragnar.pollAction();
+  //action_ragnar.sendFeedback();
   char str[100];
   sprintf(str,"Position: X%f Y%f Z%f", mobile_command[0], mobile_command[1], mobile_command[2]);
   //ROS_INFO(str);
   pub.publish(posecommand);
   trajectory_pub.publish(trajectorypoint);
-  ROS_INFO("published trajectory command");
+  //ROS_INFO("published trajectory command");
   //mobile_pub.publish(mobile_pose);
 }
 

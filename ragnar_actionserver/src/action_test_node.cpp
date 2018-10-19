@@ -9,7 +9,7 @@ static ragnar_msgs::CartesianTrajectory makeCircleTrajectory()
   ragnar_msgs::CartesianTrajectory traj;
 
   // Create circle points
-  const double r = 0.2;
+  const double r = 0.15;
   const double dt = 0.05;
 
   double pose[4];

@@ -1,4 +1,4 @@
-#include "ragnar_actionserver/ragnar_actionserver.h"
+#include "ragnar_actionserver/ragnar_simpleactionserver.h"
 #include <ros/console.h>
 #include <ros/assert.h>
 #include "ragnar_kinematics/ragnar_kinematics.h"
@@ -12,8 +12,8 @@ ragnar_action::RagnarAction::RagnarAction(const std::vector<double>& seed_pose,
   : joint_names_(joint_names)
   , traj_start_position_(seed_pose)
   , traj_start_time_(ros::Time::now())
-  , action_server_(nh, "cartesian_trajectory_action", boost::bind(&RagnarAction::goalCB, this, _1),
-                   boost::bind(&RagnarAction::cancelCB, this, _1), false)
+  , action_server_(nh, "cartesian_trajectory_action", boost::bind(&RagnarAction::executeCB, this, _1),
+                   /*boost::bind(&RagnarAction::cancelCB, this, _1),*/ false)
   , has_active_goal_(false)
 {
   ROS_ASSERT(seed_pose.size() == 4);
@@ -65,7 +65,7 @@ void ragnar_action::RagnarAction::sendFeedback()
     ragnar_msgs::CartesianTrajectoryPoint actual_; 
     actual_.pose = _geopose; 
     action_feedback_.actual = actual_; 
-    //action_server_.publishFeedback(active_goal_.getGoalStatus(), action_feedback_);
+    action_server_.publishFeedback(action_feedback_);
   }
   return; 
 }
@@ -184,7 +184,8 @@ void ragnar_action::RagnarAction::pollAction()
 {  
   if (has_active_goal_ && ros::Time::now() > (traj_start_time_ + traj_.points.back().time_from_start))
   {
-    active_goal_.setSucceeded();
+    //active_goal_.setSucceeded();
+    action_server_.setSucceeded();
     has_active_goal_ = false;
   }
 }
@@ -208,7 +209,7 @@ void stopTrajectory()
   return;
 }
 
-void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHandle& gh)
+void ragnar_action::RagnarAction::executeCB(const ragnar_msgs::FollowCartesianTrajectoryGoalConstPtr & gh)
 {
   ROS_INFO("Recieved new goal request");
   bool acceptance = false; 
@@ -217,13 +218,13 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
     ROS_WARN("Received new goal, canceling current one");
     // stop the robot before abort 
     stopTrajectory();
-    active_goal_.setAborted();
+    //active_goal_.setAborted();
     has_active_goal_ = false;
   }
   // check for valid trajectory
-  const ragnar_msgs::CartesianTrajectory& traj = gh.getGoal()->trajectory;
-  goal_status_ = gh.getGoalStatus();
-
+  //const ragnar_msgs::CartesianTrajectory& traj = gh.getGoal()->trajectory;
+  const ragnar_msgs::CartesianTrajectory& traj = gh->trajectory;
+  
   int traj_size = traj.points.size();
   for (int i=0; i<traj_size; i++) {
     ragnar_msgs::CartesianTrajectoryPoint point = traj.points[i];
@@ -236,7 +237,7 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
     {
       ROS_WARN_STREAM("Could not solve for: " << tpose[0] << " " << tpose[1] << " " << tpose[2] << " " << tpose[3]);
       ROS_INFO("Cancelling goal");
-      active_goal_.setAborted();
+      action_server_.setAborted();
       acceptance = false; 
       break; 
     }
@@ -244,13 +245,25 @@ void ragnar_action::RagnarAction::goalCB(CartesianTractoryActionServer::GoalHand
       acceptance = true; 
   }
   if (acceptance) {
-    gh.setAccepted();
+    //gh.acceptNewGoal();
     active_goal_ = gh;
     has_active_goal_ = true;
  
-    const ragnar_msgs::CartesianTrajectory& traj = active_goal_.getGoal()->trajectory;
+    const ragnar_msgs::CartesianTrajectory& traj = active_goal_->trajectory;
     setTrajectory(traj);
   }
+
+  // new code to execute action inside here 
+  ros::Time now = ros::Time::now();
+  while(now < traj_start_time_ + traj_.points.back().time_from_start)
+  {
+    now = ros::Time::now();
+    computeTrajectoryPosition(now, mob_command);
+    sendFeedback();
+  }
+
+
+  action_server_.setSucceeded();
 }
 
 static bool pose_in_range(const double(&vec)[4])
@@ -274,6 +287,7 @@ static bool pose_in_range(const double(&vec)[4])
 void ragnar_action::RagnarAction::cancelCB(CartesianTractoryActionServer::GoalHandle &gh)
 {
   ROS_INFO("Cancelling goal");
+  /*
   if (active_goal_ == gh)
   {
     // stop the controller
@@ -283,6 +297,7 @@ void ragnar_action::RagnarAction::cancelCB(CartesianTractoryActionServer::GoalHa
     active_goal_.setCanceled();
     has_active_goal_ = false;
   }
+  */
 }
 
 
