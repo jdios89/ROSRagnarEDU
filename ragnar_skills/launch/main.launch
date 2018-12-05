@@ -1,6 +1,6 @@
 <launch>
   <arg name="primitive_list" default="[execute_cartsian_trajectory]"/>
-  <arg name="skill_list" default="[ExecuteCartsianTrajectory]"/>
+  <arg name="skill_list" default="[]"/>
   <arg name="debug" default="false"/>
   <arg name="robot_ontology_prefix" default="xyz"/>
   <arg name="robot_name" default="xyz_robot"/>
